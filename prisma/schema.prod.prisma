@@ -1,0 +1,32 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/cli/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Vercel 生产环境使用 Postgres
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// 全局统计 - 只有一条记录
+model GlobalStats {
+  id          String   @id @default("global")
+  totalAmount Float   @default(0)    // 总支持金额（元）
+  baseSpeed   Float   @default(1)    // 基础转速（1圈/天）
+  updatedAt   DateTime @updatedAt
+}
+
+// 支付记录
+model Payment {
+  id            String   @id @default(cuid())
+  outTradeNo    String   @unique       // 商户订单号
+  payUrl        String?                // 支付链接/二维码
+  amount        Float                   // 金额
+  status        String   @default("pending") // pending, success, failed
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
