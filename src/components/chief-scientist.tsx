@@ -17,6 +17,8 @@ interface ChiefScientistProps {
   lastAmount?: number;
 }
 
+const ONE_HOUR = 60 * 60 * 1000;
+
 export default function ChiefScientist({ velocity = 1, lastAmount = 0 }: ChiefScientistProps) {
   const { locale } = useLocale();
   const [isOpen, setIsOpen] = useState(false);
@@ -28,6 +30,8 @@ export default function ChiefScientist({ velocity = 1, lastAmount = 0 }: ChiefSc
   const prevVelocityRef = useRef(velocity);
   const prevAmountRef = useRef(lastAmount);
   const messageQueueRef = useRef<MessageType[]>([]);
+  const hasWelcomedRef = useRef(false);
+  const lastBroadcastRef = useRef<number>(0);
 
   const fetchMessage = useCallback(async (type: MessageType) => {
     setIsLoading(true);
@@ -45,6 +49,7 @@ export default function ChiefScientist({ velocity = 1, lastAmount = 0 }: ChiefSc
         };
         setCurrentMessage(newMessage);
         setMessages(prev => [...prev.slice(-9), newMessage]);
+        lastBroadcastRef.current = Date.now();
         return text;
       }
     } catch (error) {
@@ -137,6 +142,9 @@ export default function ChiefScientist({ velocity = 1, lastAmount = 0 }: ChiefSc
   }, [velocity, queueMessage]);
 
   useEffect(() => {
+    if (hasWelcomedRef.current) return;
+    hasWelcomedRef.current = true;
+    
     const welcomeTimeout = setTimeout(() => {
       queueMessage('welcome');
     }, 3000);
@@ -145,10 +153,13 @@ export default function ChiefScientist({ velocity = 1, lastAmount = 0 }: ChiefSc
 
   useEffect(() => {
     const randomInterval = setInterval(() => {
-      const types: MessageType[] = ['random', 'pseudoscience'];
-      const randomType = types[Math.floor(Math.random() * types.length)];
-      queueMessage(randomType);
-    }, 15000);
+      const now = Date.now();
+      if (now - lastBroadcastRef.current >= ONE_HOUR) {
+        const types: MessageType[] = ['random', 'pseudoscience'];
+        const randomType = types[Math.floor(Math.random() * types.length)];
+        queueMessage(randomType);
+      }
+    }, ONE_HOUR);
     return () => clearInterval(randomInterval);
   }, [queueMessage]);
 
@@ -172,112 +183,102 @@ export default function ChiefScientist({ velocity = 1, lastAmount = 0 }: ChiefSc
 
   return (
     <>
-      {/* 悬浮球 - 最小化状态 */}
       {!isOpen && (
         <div className="fixed bottom-24 right-4 z-30">
           <button
             onClick={handleOpen}
-            className="group relative w-14 h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg shadow-purple-500/30 flex items-center justify-center animate-bounce-subtle hover:scale-110 transition-transform"
+            className="group relative w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg shadow-purple-500/30 flex items-center justify-center animate-bounce-subtle hover:scale-110 transition-transform"
           >
-            <Sparkles className="w-6 h-6 text-white" />
-            {/* 脉冲动画 */}
+            <Sparkles className="w-5 h-5 md:w-6 md:h-6 text-white" />
             <span className="absolute inset-0 rounded-full bg-purple-400 animate-ping opacity-75" />
-            {/* 消息提示 */}
             {currentMessage && (
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-pulse" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-red-500 rounded-full animate-pulse" />
             )}
           </button>
         </div>
       )}
 
-      {/* 全屏对话框 */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-black/60 backdrop-blur-sm">
           <div 
             className={`
               relative w-full max-w-lg bg-slate-900/95 border border-purple-500/50 rounded-2xl shadow-2xl shadow-purple-500/20
-              transition-all duration-300 overflow-hidden
+              transition-all duration-300 overflow-hidden max-h-[90vh] md:max-h-none
               ${isExpanded ? 'scale-100 opacity-100' : 'scale-90 opacity-0'}
             `}
           >
-            {/* 装饰边框 */}
             <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute top-0 left-0 w-20 h-20 bg-purple-500/20 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 right-0 w-20 h-20 bg-pink-500/20 rounded-full blur-3xl" />
+              <div className="absolute top-0 left-0 w-16 md:w-20 h-16 md:h-20 bg-purple-500/20 rounded-full blur-3xl" />
+              <div className="absolute bottom-0 right-0 w-16 md:w-20 h-16 md:h-20 bg-pink-500/20 rounded-full blur-3xl" />
             </div>
 
-            {/* 头部 */}
-            <div className="relative flex items-center justify-between p-4 border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-white" />
+            <div className="relative flex items-center justify-between p-3 md:p-4 border-b border-white/10">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold">
+                  <h3 className="text-white font-semibold text-sm md:text-base">
                     {locale === 'zh' ? '首席科学家' : 'Chief Scientist'}
                   </h3>
-                  <p className="text-xs text-purple-400">
+                  <p className="text-[10px] md:text-xs text-purple-400">
                     {locale === 'zh' ? 'Faymox 地球动力实验室' : 'Faymox Earth Dynamics Lab'}
                   </p>
                 </div>
               </div>
               <button
                 onClick={handleClose}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
               >
-                <X className="w-4 h-4 text-white/70" />
+                <X className="w-3 h-3 md:w-4 md:h-4 text-white/70" />
               </button>
             </div>
 
-            {/* 消息区域 */}
-            <div className="relative p-4 space-y-4 max-h-[60vh] overflow-y-auto">
-              {/* 当前消息 */}
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-purple-500/30 flex-shrink-0 flex items-center justify-center">
-                  <span className="text-sm">🧑‍🔬</span>
+            <div className="relative p-3 md:p-4 space-y-3 md:space-y-4 max-h-[50vh] md:max-h-[60vh] overflow-y-auto">
+              <div className="flex items-start gap-2 md:gap-3">
+                <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-purple-500/30 flex-shrink-0 flex items-center justify-center">
+                  <span className="text-xs md:text-sm">🧑‍🔬</span>
                 </div>
                 <div className="flex-1">
                   {isLoading ? (
                     <div className="flex items-center gap-2 text-white/50">
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">{locale === 'zh' ? '思考中...' : 'Thinking...'}</span>
+                      <RefreshCw className="w-3 h-3 md:w-4 md:h-4 animate-spin" />
+                      <span className="text-xs md:text-sm">{locale === 'zh' ? '思考中...' : 'Thinking...'}</span>
                     </div>
                   ) : (
-                    <p className="text-white/90 text-sm leading-relaxed">
+                    <p className="text-white/90 text-xs md:text-sm leading-relaxed">
                       {currentMessage?.text || (locale === 'zh' ? '你好！我是首席科学家，随时为您播报地球加速的最新动态！' : 'Hello! I\'m the Chief Scientist, ready to report the latest Earth acceleration updates!')}
                     </p>
                   )}
                 </div>
               </div>
 
-              {/* 历史消息 */}
               {messages.length > 1 && (
                 <div className="space-y-2 border-t border-white/10 pt-3">
-                  <p className="text-xs text-white/30 mb-2">
+                  <p className="text-[10px] md:text-xs text-white/30 mb-2">
                     {locale === 'zh' ? '历史播报' : 'Previous broadcasts'}
                   </p>
-                  {messages.slice(0, -1).reverse().map((msg, idx) => (
+                  {messages.slice(0, -1).reverse().slice(0, 5).map((msg) => (
                     <div key={msg.timestamp} className="flex items-start gap-2 opacity-50">
-                      <span className="text-xs mt-1">•</span>
-                      <p className="text-xs text-white/60">{msg.text}</p>
+                      <span className="text-[10px] mt-1">•</span>
+                      <p className="text-[10px] md:text-xs text-white/60">{msg.text}</p>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* 底部操作栏 */}
-            <div className="relative flex items-center justify-between p-3 border-t border-white/10 bg-black/20">
+            <div className="relative flex items-center justify-between p-2 md:p-3 border-t border-white/10 bg-black/20">
               <button
                 onClick={handleToggleSound}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
               >
                 {soundEnabled ? (
-                  <Volume2 className="w-4 h-4 text-purple-400" />
+                  <Volume2 className="w-3 h-3 md:w-4 md:h-4 text-purple-400" />
                 ) : (
-                  <VolumeX className="w-4 h-4 text-white/50" />
+                  <VolumeX className="w-3 h-3 md:w-4 md:h-4 text-white/50" />
                 )}
-                <span className="text-xs text-white/70">
+                <span className="text-[10px] md:text-xs text-white/70">
                   {soundEnabled ? (locale === 'zh' ? '音效' : 'Sound') : (locale === 'zh' ? '静音' : 'Muted')}
                 </span>
               </button>
@@ -285,11 +286,11 @@ export default function ChiefScientist({ velocity = 1, lastAmount = 0 }: ChiefSc
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/30 hover:bg-purple-500/50 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-purple-500/30 hover:bg-purple-500/50 transition-colors disabled:opacity-50"
               >
-                <RefreshCw className={`w-4 h-4 text-purple-300 ${isLoading ? 'animate-spin' : ''}`} />
-                <span className="text-xs text-purple-300">
-                  {locale === 'zh' ? '刷新播报' : 'Refresh'}
+                <RefreshCw className={`w-3 h-3 md:w-4 md:h-4 text-purple-300 ${isLoading ? 'animate-spin' : ''}`} />
+                <span className="text-[10px] md:text-xs text-purple-300">
+                  {locale === 'zh' ? '刷新' : 'Refresh'}
                 </span>
               </button>
             </div>
@@ -297,13 +298,12 @@ export default function ChiefScientist({ velocity = 1, lastAmount = 0 }: ChiefSc
         </div>
       )}
 
-      {/* 迷你消息提示 - 当不在对话框中时 */}
       {currentMessage && !isOpen && (
-        <div className="fixed bottom-32 right-4 z-20 max-w-[250px]">
-          <div className="bg-slate-900/90 backdrop-blur-md border border-purple-500/30 rounded-xl p-3 shadow-lg shadow-purple-500/10 animate-slide-in-up">
-            <div className="flex items-start gap-2">
-              <span className="text-lg">🧑‍🔬</span>
-              <p className="text-xs text-white/80 leading-relaxed line-clamp-3">
+        <div className="fixed bottom-28 md:bottom-32 right-4 z-20 max-w-[200px] md:max-w-[250px]">
+          <div className="bg-slate-900/90 backdrop-blur-md border border-purple-500/30 rounded-lg md:rounded-xl p-2 md:p-3 shadow-lg shadow-purple-500/10 animate-slide-in-up">
+            <div className="flex items-start gap-1 md:gap-2">
+              <span className="text-base md:text-lg">🧑‍🔬</span>
+              <p className="text-[10px] md:text-xs text-white/80 leading-relaxed line-clamp-3">
                 {currentMessage.text}
               </p>
             </div>
