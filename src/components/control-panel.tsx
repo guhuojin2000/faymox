@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLocale } from '@/lib/locale-context';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,8 +19,6 @@ interface ControlPanelProps {
 
 // 能量粒子组件
 function EnergyParticles({ active }: { active: boolean }) {
-  const particlesRef = useRef<HTMLDivElement>(null);
-  
   if (!active) return null;
   
   return (
@@ -131,14 +129,6 @@ export default function ControlPanel({ currentVelocity, onPaymentSuccess }: Cont
       setOpen(true);
     }, 1000);
   }, []);
-
-  // 模拟支付成功（扫码后）
-  const handleScanSuccess = useCallback(() => {
-    const mockAmount = 10; // 模拟金额
-    onPaymentSuccess(mockAmount, customMessage);
-    setOpen(false);
-    setCustomMessage('');
-  }, [customMessage, onPaymentSuccess]);
 
   useEffect(() => {
     if (!open) {
@@ -275,13 +265,7 @@ export default function ControlPanel({ currentVelocity, onPaymentSuccess }: Cont
               </span>
             </div>
             
-            {/* 模拟支付成功按钮（演示用） */}
-            <button
-              onClick={handleScanSuccess}
-              className="text-xs text-white/30 hover:text-white/50 transition-colors mt-2"
-            >
-              {locale === 'zh' ? '[演示] 模拟支付成功' : '[Demo] Simulate payment success'}
-            </button>
+
           </div>
         </DialogContent>
       </Dialog>

@@ -3,223 +3,247 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocale } from '@/lib/locale-context';
 
-// 可用的随机字体列表
+type AnimationType = 
+  | 'slideFromLeft' 
+  | 'slideFromRight' 
+  | 'slideFromTop' 
+  | 'slideFromBottom'
+  | 'flyFromTopLeft'
+  | 'flyFromTopRight'
+  | 'flyFromBottomLeft'
+  | 'flyFromBottomRight'
+  | 'scaleFromCenter'
+  | 'scatterAssemble'
+  | 'typewriter'
+  | 'bounceIn';
+
+const animationTypes: AnimationType[] = [
+  'slideFromLeft',
+  'slideFromRight', 
+  'slideFromTop',
+  'slideFromBottom',
+  'flyFromTopLeft',
+  'flyFromTopRight',
+  'flyFromBottomLeft',
+  'flyFromBottomRight',
+  'scaleFromCenter',
+  'scatterAssemble',
+  'typewriter',
+  'bounceIn',
+];
+
 const fonts = [
   'sans-serif',
   'serif',
   'monospace',
-  'cursive',
-  'fantasy',
-  'system-ui',
   'Georgia',
-  'Palatino',
-  'Times New Roman',
   'Arial',
   'Verdana',
-  'Courier New',
 ];
 
 interface CharState {
   char: string;
+  x: number;
   y: number;
   rotation: number;
   scale: number;
+  opacity: number;
   font: string;
   delay: number;
-  isJumping: boolean;
+}
+
+function getRandomAnimation(): AnimationType {
+  return animationTypes[Math.floor(Math.random() * animationTypes.length)];
+}
+
+function getInitialCharStates(text: string, animationType: AnimationType): CharState[] {
+  return text.split('').map((char, index) => {
+    let x = 0, y = 0, rotation = 0, scale = 1, opacity = 0;
+    
+    switch (animationType) {
+      case 'slideFromLeft':
+        x = -100 - Math.random() * 50;
+        opacity = 0;
+        break;
+      case 'slideFromRight':
+        x = 100 + Math.random() * 50;
+        opacity = 0;
+        break;
+      case 'slideFromTop':
+        y = -80 - Math.random() * 40;
+        opacity = 0;
+        break;
+      case 'slideFromBottom':
+        y = 80 + Math.random() * 40;
+        opacity = 0;
+        break;
+      case 'flyFromTopLeft':
+        x = -150 - Math.random() * 100;
+        y = -150 - Math.random() * 100;
+        rotation = -30 - Math.random() * 30;
+        scale = 0.5;
+        opacity = 0;
+        break;
+      case 'flyFromTopRight':
+        x = 150 + Math.random() * 100;
+        y = -150 - Math.random() * 100;
+        rotation = 30 + Math.random() * 30;
+        scale = 0.5;
+        opacity = 0;
+        break;
+      case 'flyFromBottomLeft':
+        x = -150 - Math.random() * 100;
+        y = 150 + Math.random() * 100;
+        rotation = -30 - Math.random() * 30;
+        scale = 0.5;
+        opacity = 0;
+        break;
+      case 'flyFromBottomRight':
+        x = 150 + Math.random() * 100;
+        y = 150 + Math.random() * 100;
+        rotation = 30 + Math.random() * 30;
+        scale = 0.5;
+        opacity = 0;
+        break;
+      case 'scaleFromCenter':
+        scale = 0;
+        opacity = 0;
+        break;
+      case 'scatterAssemble':
+        x = (Math.random() - 0.5) * 400;
+        y = (Math.random() - 0.5) * 200;
+        rotation = (Math.random() - 0.5) * 180;
+        scale = 0.3 + Math.random() * 0.5;
+        opacity = 0;
+        break;
+      case 'typewriter':
+        opacity = 0;
+        break;
+      case 'bounceIn':
+        y = -200 - Math.random() * 100;
+        rotation = (Math.random() - 0.5) * 60;
+        scale = 0.5;
+        opacity = 0;
+        break;
+    }
+    
+    return {
+      char,
+      x,
+      y,
+      rotation,
+      scale,
+      opacity,
+      font: fonts[Math.floor(Math.random() * fonts.length)],
+      delay: index * 30 + Math.random() * 50,
+    };
+  });
 }
 
 export default function DynamicTagline() {
   const { locale } = useLocale();
+  const [animationType, setAnimationType] = useState<AnimationType>('typewriter');
+  const [charStates, setCharStates] = useState<CharState[]>([]);
+  const [isAnimating, setIsAnimating] = useState(true);
+  const [glowIntensity, setGlowIntensity] = useState(0);
   const [displayText, setDisplayText] = useState('');
   const [showCursor, setShowCursor] = useState(true);
-  const [isTyping, setIsTyping] = useState(true);
-  const [glowIntensity, setGlowIntensity] = useState(0);
-  const [charStates, setCharStates] = useState<CharState[]>([]);
-  const [isJumping, setIsJumping] = useState(false);
   
   const fullText = locale === 'zh' 
     ? '既然还没想好做什么，不如先让地球转快点吧。'
     : "The developer hasn't decided what to build yet, so let's speed up the Earth together.";
 
-  // 初始化字符状态
-  const initCharStates = useCallback((text: string): CharState[] => {
-    return text.split('').map((char, index) => ({
-      char,
-      y: 0,
-      rotation: 0,
-      scale: 1,
-      font: fonts[Math.floor(Math.random() * fonts.length)],
-      delay: index * 30 + Math.random() * 100,
-      isJumping: false,
-    }));
-  }, []);
-
-  // 打字机效果
-  useEffect(() => {
+  const startAnimation = useCallback(() => {
+    const newAnimationType = getRandomAnimation();
+    setAnimationType(newAnimationType);
     setDisplayText('');
-    setIsTyping(true);
-    let currentIndex = 0;
+    setIsAnimating(true);
     
-    const typeInterval = setInterval(() => {
-      if (currentIndex <= fullText.length) {
-        setDisplayText(fullText.slice(0, currentIndex));
-        currentIndex++;
-      } else {
-        setIsTyping(false);
-        clearInterval(typeInterval);
-        // 打字完成后初始化字符状态
-        setCharStates(initCharStates(fullText));
-      }
-    }, 60);
+    const initialStates = getInitialCharStates(fullText, newAnimationType);
+    setCharStates(initialStates);
+    
+    if (newAnimationType === 'typewriter') {
+      let currentIndex = 0;
+      const typeInterval = setInterval(() => {
+        if (currentIndex <= fullText.length) {
+          setDisplayText(fullText.slice(0, currentIndex));
+          currentIndex++;
+        } else {
+          setIsAnimating(false);
+          clearInterval(typeInterval);
+        }
+      }, 50);
+      return () => clearInterval(typeInterval);
+    } else {
+      setTimeout(() => {
+        setCharStates(prev => prev.map((state, index) => ({
+          ...state,
+          x: 0,
+          y: 0,
+          rotation: 0,
+          scale: 1,
+          opacity: 1,
+          delay: index * 25 + Math.random() * 30,
+        })));
+      }, 100);
+      
+      const maxDelay = fullText.length * 25 + 500;
+      setTimeout(() => {
+        setIsAnimating(false);
+      }, maxDelay);
+    }
+  }, [fullText]);
 
-    return () => clearInterval(typeInterval);
-  }, [fullText, initCharStates]);
+  useEffect(() => {
+    startAnimation();
+  }, [startAnimation]);
 
-  // 光标闪烁
   useEffect(() => {
     const cursorInterval = setInterval(() => {
       setShowCursor(prev => !prev);
     }, 530);
-
     return () => clearInterval(cursorInterval);
   }, []);
 
-  // 发光脉冲效果
   useEffect(() => {
     const glowInterval = setInterval(() => {
-      setGlowIntensity(prev => {
-        const next = prev + 0.05;
-        return next > 1 ? 0 : next;
-      });
+      setGlowIntensity(prev => (prev + 0.05) % 1);
     }, 50);
-
     return () => clearInterval(glowInterval);
   }, []);
 
-  // 随机蹦跳动画 - 每30秒触发
-  const triggerJumpAnimation = useCallback(() => {
-    if (isTyping || isJumping) return;
-    
-    setIsJumping(true);
-    
-    // 为每个字符创建随机动画参数
-    const newStates = fullText.split('').map((char, index) => {
-      const randomFont = fonts[Math.floor(Math.random() * fonts.length)];
-      const jumpHeight = -20 - Math.random() * 40; // 随机跳跃高度
-      const rotation = (Math.random() - 0.5) * 60; // 随机旋转角度
-      const delay = index * 20 + Math.random() * 150; // 错开延迟
-      
-      return {
-        char,
-        y: 0,
-        rotation: 0,
-        scale: 1,
-        font: randomFont,
-        delay,
-        isJumping: true,
-        targetY: jumpHeight,
-        targetRotation: rotation,
-      };
-    });
-    
-    // 第一阶段：跳跃动画
-    newStates.forEach((state, index) => {
-      setTimeout(() => {
-        setCharStates(prev => {
-          const newPrev = [...prev];
-          if (newPrev[index]) {
-            newPrev[index] = {
-              ...newPrev[index],
-              y: state.targetY!,
-              rotation: state.targetRotation!,
-              scale: 1.2,
-              font: state.font,
-              isJumping: true,
-            };
-          }
-          return newPrev;
-        });
-      }, state.delay);
-    });
-    
-    // 第二阶段：落下动画
-    const maxDelay = Math.max(...newStates.map(s => s.delay)) + 300;
-    setTimeout(() => {
-      newStates.forEach((state, index) => {
-        setTimeout(() => {
-          setCharStates(prev => {
-            const newPrev = [...prev];
-            if (newPrev[index]) {
-              newPrev[index] = {
-                ...newPrev[index],
-                y: 0,
-                rotation: 0,
-                scale: 1,
-                isJumping: false,
-              };
-            }
-            return newPrev;
-          });
-        }, index * 15);
-      });
-    }, maxDelay + 400);
-    
-    // 结束跳跃状态
-    setTimeout(() => {
-      setIsJumping(false);
-    }, maxDelay + 1000);
-  }, [fullText, isTyping, isJumping]);
-
-  // 每30秒触发一次蹦跳
-  useEffect(() => {
-    if (isTyping) return;
-    
-    // 首次延迟5秒后开始
-    const initialTimeout = setTimeout(() => {
-      triggerJumpAnimation();
-    }, 5000);
-    
-    const interval = setInterval(() => {
-      triggerJumpAnimation();
-    }, 30000);
-    
-    return () => {
-      clearTimeout(initialTimeout);
-      clearInterval(interval);
-    };
-  }, [isTyping, triggerJumpAnimation]);
-
-  // 计算动态发光颜色
   const glowOpacity = 0.3 + Math.sin(glowIntensity * Math.PI * 2) * 0.15;
 
-  // 渲染带动画的字符
-  const renderAnimatedChars = useMemo(() => {
-    if (charStates.length === 0) {
-      return <span className="text-white/70">{displayText}</span>;
+  const renderChars = useMemo(() => {
+    if (animationType === 'typewriter') {
+      return (
+        <span className="text-white/70">
+          {displayText}
+        </span>
+      );
     }
     
     return charStates.map((state, index) => (
       <span
         key={index}
-        className="inline-block transition-all duration-300 ease-out"
+        className="inline-block"
         style={{
-          transform: `translateY(${state.y}px) rotate(${state.rotation}deg) scale(${state.scale})`,
+          transform: `translate(${state.x}px, ${state.y}px) rotate(${state.rotation}deg) scale(${state.scale})`,
+          opacity: state.opacity,
           fontFamily: state.font,
-          textShadow: state.isJumping 
-            ? `0 0 10px rgba(100, 200, 255, 0.8), 0 0 20px rgba(100, 200, 255, 0.4)`
-            : undefined,
-          transitionTimingFunction: state.isJumping ? 'cubic-bezier(0.68, -0.55, 0.265, 1.55)' : 'ease-out',
+          transition: `all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) ${state.delay}ms`,
+          textShadow: state.opacity > 0.5 
+            ? `0 0 10px rgba(100, 200, 255, 0.5)` 
+            : 'none',
         }}
       >
         {state.char}
       </span>
     ));
-  }, [charStates, displayText]);
+  }, [animationType, charStates, displayText]);
 
   return (
     <div className="relative text-center px-4">
-      {/* 背景光晕 */}
       <div 
         className="absolute inset-0 blur-xl pointer-events-none"
         style={{
@@ -227,7 +251,6 @@ export default function DynamicTagline() {
         }}
       />
       
-      {/* 主文字 */}
       <p 
         className="relative text-base md:text-xl max-w-xl leading-relaxed font-light tracking-wide"
         style={{
@@ -235,12 +258,11 @@ export default function DynamicTagline() {
         }}
       >
         <span className="text-white/70">
-          {renderAnimatedChars}
+          {renderChars}
         </span>
-        {/* 打字光标 */}
         <span 
           className={`inline-block w-[2px] h-[1.1em] ml-[2px] align-middle transition-opacity duration-100 ${
-            showCursor && (isTyping || displayText.length < fullText.length) ? 'opacity-100' : 'opacity-0'
+            showCursor && isAnimating ? 'opacity-100' : 'opacity-0'
           }`}
           style={{
             backgroundColor: `rgba(100, 200, 255, ${0.5 + glowIntensity * 0.3})`,
@@ -249,13 +271,9 @@ export default function DynamicTagline() {
         />
       </p>
 
-      {/* 打字完成后的脉冲提示 */}
-      {!isTyping && displayText.length >= fullText.length && (
+      {!isAnimating && (
         <span 
           className="inline-block mt-2 text-xs text-cyan-400/60 animate-pulse"
-          style={{
-            animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-          }}
         >
           ▼
         </span>

@@ -9,6 +9,7 @@ import LocaleSwitcher from '@/components/locale-switcher';
 import ShareButton from '@/components/share-button';
 import DynamicTagline from '@/components/dynamic-tagline';
 import DeveloperStatus from '@/components/developer-status';
+import ChiefScientist from '@/components/chief-scientist';
 import { Globe, Volume2, VolumeX, Languages } from 'lucide-react';
 
 // 动态导入 3D 场景
@@ -274,6 +275,12 @@ function FaymoxContent() {
 
       {/* 弹幕系统 */}
       <BarrageSystem />
+
+      {/* 首席科学家 */}
+      <ChiefScientist 
+        velocity={velocity}
+        lastAmount={lastAmount}
+      />
 
       {/* 开发者状态浮窗 */}
       <DeveloperStatus />
