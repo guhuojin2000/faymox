@@ -1,35 +1,56 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
 
-// 获取当前转速
+// 内存存储
+let globalStats = {
+  totalAmount: 0,
+  baseSpeed: 1,
+};
+
 export async function GET() {
   try {
-    // 获取或创建全局统计
-    let stats = await db.globalStats.findUnique({
-      where: { id: 'global' }
-    });
-
-    if (!stats) {
-      stats = await db.globalStats.create({
-        data: {
-          id: 'global',
-          totalAmount: 0,
-          baseSpeed: 1,
-        }
-      });
-    }
-
-    // 计算转速：基础转速 + 总金额 / 10000
-    const velocity = stats.baseSpeed + stats.totalAmount / 10000;
+    const velocity = globalStats.baseSpeed + globalStats.totalAmount / 10000;
     const isOverThousand = velocity >= 1000;
 
     return NextResponse.json({
       velocity: parseFloat(velocity.toFixed(2)),
-      totalAmount: stats.totalAmount,
+      totalAmount: globalStats.totalAmount,
       isOverThousand,
     });
   } catch (error) {
     console.error('Error fetching stats:', error);
-    return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
+    return NextResponse.json({
+      velocity: 1,
+      totalAmount: 0,
+      isOverThousand: false,
+    });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { amount } = body;
+
+    if (typeof amount === 'number' && amount > 0) {
+      globalStats.totalAmount += amount;
+    }
+
+    const velocity = globalStats.baseSpeed + globalStats.totalAmount / 10000;
+    const isOverThousand = velocity >= 1000;
+
+    return NextResponse.json({
+      success: true,
+      velocity: parseFloat(velocity.toFixed(2)),
+      totalAmount: globalStats.totalAmount,
+      isOverThousand,
+    });
+  } catch (error) {
+    console.error('Error updating stats:', error);
+    return NextResponse.json({
+      success: false,
+      velocity: 1,
+      totalAmount: 0,
+      isOverThousand: false,
+    });
   }
 }
