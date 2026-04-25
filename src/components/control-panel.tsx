@@ -10,7 +10,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Heart, Rocket, QrCode, Sparkles, Zap } from 'lucide-react';
+import { Heart, Rocket, QrCode, Sparkles, Zap, Send, Loader2 } from 'lucide-react';
+import { triggerHighlightBarrage } from '@/components/barrage-system';
 
 interface ControlPanelProps {
   currentVelocity: number;
@@ -69,6 +70,7 @@ export default function ControlPanel({ currentVelocity, onPaymentSuccess }: Cont
   const [customMessage, setCustomMessage] = useState('');
   const [showParticles, setShowParticles] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   const handleButtonClick = useCallback(() => {
     setShowParticles(true);
@@ -123,6 +125,36 @@ export default function ControlPanel({ currentVelocity, onPaymentSuccess }: Cont
       setOpen(true);
     }, 1000);
   }, []);
+
+  const handleSendMessage = useCallback(async () => {
+    if (!customMessage.trim() || isSending) return;
+    
+    setIsSending(true);
+    
+    try {
+      const response = await fetch('/api/polish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: customMessage,
+          locale,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.message?.polished) {
+        triggerHighlightBarrage(data.message.polished);
+        setCustomMessage('');
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      triggerHighlightBarrage(customMessage);
+      setCustomMessage('');
+    } finally {
+      setIsSending(false);
+    }
+  }, [customMessage, isSending, locale]);
 
   useEffect(() => {
     if (!open) {
@@ -211,20 +243,47 @@ export default function ControlPanel({ currentVelocity, onPaymentSuccess }: Cont
             </div>
             
             <div className="w-full space-y-2">
-              <Input
-                type="text"
-                placeholder={locale === 'zh' 
-                  ? '留下你的引力宣言（可选）' 
-                  : 'Your gravity declaration (optional)'}
-                value={customMessage}
-                onChange={(e) => setCustomMessage(e.target.value)}
-                className="bg-slate-800 border-slate-600 focus:border-pink-500 text-white placeholder:text-white/30 text-sm md:text-base"
-                maxLength={50}
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder={locale === 'zh' 
+                    ? '留下你的引力宣言（可选）' 
+                    : 'Your gravity declaration (optional)'}
+                  value={customMessage}
+                  onChange={(e) => setCustomMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && customMessage.trim()) {
+                      handleSendMessage();
+                    }
+                  }}
+                  className="flex-1 bg-slate-800 border-slate-600 focus:border-cyan-500 text-white placeholder:text-white/30 text-sm md:text-base"
+                  maxLength={50}
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!customMessage.trim() || isSending}
+                  className={`
+                    px-3 md:px-4 bg-gradient-to-r from-cyan-600 to-blue-600 
+                    hover:from-cyan-500 hover:to-blue-500
+                    text-white font-semibold
+                    border border-cyan-400/50
+                    shadow-lg shadow-cyan-500/20
+                    transition-all duration-300
+                    disabled:opacity-40 disabled:cursor-not-allowed
+                    ${customMessage.trim() && !isSending ? 'hover:shadow-cyan-500/40 hover:scale-105' : ''}
+                  `}
+                >
+                  {isSending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
               <p className="text-[10px] md:text-xs text-white/40 text-center">
                 {locale === 'zh' 
-                  ? '支持后AI将生成独特的加速弹幕' 
-                  : 'AI will generate unique acceleration barrage'}
+                  ? '点击发送，AI将润色并以高亮弹幕形式展示' 
+                  : 'Click send, AI will polish and display as highlight barrage'}
               </p>
             </div>
             

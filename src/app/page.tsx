@@ -10,6 +10,9 @@ import ShareButton from '@/components/share-button';
 import DynamicTagline from '@/components/dynamic-tagline';
 import DeveloperStatus from '@/components/developer-status';
 import ChiefScientist from '@/components/chief-scientist';
+import MissileLaunchPad, { MissileType } from '@/components/missile-launch-pad';
+import MissileLauncher from '@/components/missile-launcher';
+import CalculationPopup from '@/components/calculation-popup';
 import { Globe, Volume2, VolumeX, Languages } from 'lucide-react';
 
 const EarthScene = dynamic(() => import('@/components/earth-scene'), {
@@ -113,6 +116,9 @@ function FaymoxContent() {
   const [lastAmount, setLastAmount] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [launchingMissile, setLaunchingMissile] = useState<MissileType | null>(null);
+  const [calculationMissile, setCalculationMissile] = useState<MissileType | null>(null);
+  const [missileBoost, setMissileBoost] = useState(0);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -256,6 +262,46 @@ function FaymoxContent() {
     setTimeout(() => setShowBoost(false), 2000);
   }, [fetchStats, playBoostSound, generateSupportBarrage]);
 
+  const handleMissileLaunch = useCallback((missile: MissileType) => {
+    setLaunchingMissile(missile);
+  }, []);
+
+  const handleMissileComplete = useCallback((missile: MissileType) => {
+    setLaunchingMissile(null);
+    
+    let actualBoost = missile.boost;
+    if (missile.id === 'ai-logic-bomb') {
+      actualBoost = missile.boost * (0.5 + Math.random() * 2);
+    }
+    
+    setMissileBoost(actualBoost);
+    setCalculationMissile(missile);
+    
+    setVelocity(prev => prev + actualBoost);
+    
+    if (soundEnabled) {
+      try {
+        const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        osc.frequency.setValueAtTime(400, audioContext.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+        osc.start();
+        osc.stop(audioContext.currentTime + 0.3);
+      } catch {
+        // Audio not supported
+      }
+    }
+  }, [soundEnabled]);
+
+  const handleCalculationClose = useCallback(() => {
+    setCalculationMissile(null);
+  }, []);
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#000008]">
       <EarthScene 
@@ -299,7 +345,7 @@ function FaymoxContent() {
           )}
         </main>
 
-        <footer className="flex flex-col items-center gap-3 md:gap-4 px-3 md:px-4 py-4 md:py-8 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+        <footer className="flex flex-col items-center gap-3 md:gap-4 px-3 md:px-4 py-4 md:py-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
           <ControlPanel 
             currentVelocity={velocity}
             onPaymentSuccess={handlePaymentSuccess}
@@ -309,12 +355,28 @@ function FaymoxContent() {
             <ShareButton amount={lastAmount} velocity={velocity} />
           )}
 
+          <MissileLaunchPad 
+            onLaunch={handleMissileLaunch}
+            disabled={!!launchingMissile || !!calculationMissile}
+          />
+
           <div className="flex flex-col items-center gap-1 mt-2 md:mt-4 text-white/30 text-[10px] md:text-xs">
             <p>{t.poweredBy}</p>
             <p>© {new Date().getFullYear()} Faymox</p>
           </div>
         </footer>
       </div>
+
+      <MissileLauncher 
+        missile={launchingMissile}
+        onComplete={handleMissileComplete}
+      />
+
+      <CalculationPopup 
+        missile={calculationMissile}
+        boost={missileBoost}
+        onClose={handleCalculationClose}
+      />
 
       {showBoost && (
         <div className="fixed inset-0 pointer-events-none z-20">
