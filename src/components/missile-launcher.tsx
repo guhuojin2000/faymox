@@ -25,8 +25,13 @@ export default function MissileLauncher({ missile, onComplete }: MissileLauncher
   const [particles, setParticles] = useState<Particle[]>([]);
   const [showExplosion, setShowExplosion] = useState(false);
   const [earthShake, setEarthShake] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const particleIdRef = useRef(0);
   const animationRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const createParticles = useCallback((x: number, y: number, color: string, effect: string, count: number = 20) => {
     const newParticles: Particle[] = [];
@@ -51,7 +56,7 @@ export default function MissileLauncher({ missile, onComplete }: MissileLauncher
   }, []);
 
   useEffect(() => {
-    if (!missile) {
+    if (!missile || !mounted) {
       setMissilePos({ x: 0, y: 0, progress: 0 });
       setParticles([]);
       setShowExplosion(false);
@@ -118,7 +123,7 @@ export default function MissileLauncher({ missile, onComplete }: MissileLauncher
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [missile, createParticles, onComplete]);
+  }, [missile, createParticles, onComplete, mounted]);
 
   useEffect(() => {
     if (particles.length === 0) return;
@@ -140,97 +145,87 @@ export default function MissileLauncher({ missile, onComplete }: MissileLauncher
     return () => clearInterval(interval);
   }, [particles.length]);
 
-  if (!missile) return null;
+  if (!missile || !mounted) return null;
 
   return (
-    <>
-      {earthShake && (
-        <style jsx global>{`
-          @keyframes earth-shake {
-            0%, 100% { transform: translateX(0) translateY(0); }
-            10% { transform: translateX(-5px) translateY(-3px); }
-            20% { transform: translateX(5px) translateY(3px); }
-            30% { transform: translateX(-4px) translateY(-2px); }
-            40% { transform: translateX(4px) translateY(2px); }
-            50% { transform: translateX(-3px) translateY(-1px); }
-            60% { transform: translateX(3px) translateY(1px); }
-            70% { transform: translateX(-2px) translateY(0); }
-            80% { transform: translateX(2px) translateY(0); }
-            90% { transform: translateX(-1px) translateY(0); }
-          }
-          .earth-shake {
-            animation: earth-shake 0.5s ease-in-out;
-          }
-        `}</style>
-      )}
+    <div 
+      className={`fixed inset-0 pointer-events-none z-40 ${earthShake ? 'animate-earth-shake' : ''}`}
+      style={{
+        ['--missile-color' as string]: missile.color,
+      }}
+    >
+      {particles.map(particle => (
+        <div
+          key={particle.id}
+          className="absolute rounded-full"
+          style={{
+            left: particle.x,
+            top: particle.y,
+            width: particle.size,
+            height: particle.size,
+            backgroundColor: particle.color,
+            opacity: particle.life,
+            boxShadow: `0 0 ${particle.size * 2}px ${particle.color}`,
+            transform: 'translate(-50%, -50%)',
+          }}
+        />
+      ))}
 
-      <div className={`fixed inset-0 pointer-events-none z-40 ${earthShake ? 'earth-shake' : ''}`}>
-        {particles.map(particle => (
+      {!showExplosion && missilePos.progress > 0 && missilePos.progress < 1 && (
+        <div
+          className="absolute"
+          style={{
+            left: missilePos.x,
+            top: missilePos.y,
+            transform: 'translate(-50%, -50%) rotate(-90deg)',
+          }}
+        >
           <div
-            key={particle.id}
-            className="absolute rounded-full"
+            className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center"
             style={{
-              left: particle.x,
-              top: particle.y,
-              width: particle.size,
-              height: particle.size,
-              backgroundColor: particle.color,
-              opacity: particle.life,
-              boxShadow: `0 0 ${particle.size * 2}px ${particle.color}`,
-              transform: 'translate(-50%, -50%)',
+              color: missile.color,
+              filter: `drop-shadow(0 0 10px ${missile.color}) drop-shadow(0 0 20px ${missile.color})`,
+            }}
+          >
+            {missile.icon}
+          </div>
+          <div
+            className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-3 h-8 rounded-full"
+            style={{
+              background: `linear-gradient(to bottom, ${missile.color}, transparent)`,
+              filter: 'blur(2px)',
             }}
           />
-        ))}
+        </div>
+      )}
 
-        {!showExplosion && missilePos.progress > 0 && missilePos.progress < 1 && (
-          <div
-            className="absolute transition-transform"
-            style={{
-              left: missilePos.x,
-              top: missilePos.y,
-              transform: 'translate(-50%, -50%) rotate(-90deg)',
-            }}
-          >
-            <div
-              className="w-8 h-8 md:w-10 md:h-10"
-              style={{
-                color: missile.color,
-                filter: `drop-shadow(0 0 10px ${missile.color}) drop-shadow(0 0 20px ${missile.color})`,
-              }}
-            >
-              {missile.icon}
-            </div>
-            <div
-              className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-3 h-8 rounded-full"
-              style={{
-                background: `linear-gradient(to bottom, ${missile.color}, transparent)`,
-                filter: `blur(2px)`,
-              }}
-            />
-          </div>
-        )}
+      {showExplosion && (
+        <div
+          className="absolute left-1/2 top-[calc(50%-50px)] w-32 h-32 md:w-48 md:h-48 rounded-full animate-explosion"
+          style={{
+            transform: 'translate(-50%, -50%)',
+            background: `radial-gradient(circle, ${missile.color} 0%, ${missile.color}80 30%, transparent 70%)`,
+            filter: 'blur(10px)',
+          }}
+        />
+      )}
 
-        {showExplosion && (
-          <div
-            className="absolute"
-            style={{
-              left: '50%',
-              top: 'calc(50% - 50px)',
-              transform: 'translate(-50%, -50%)',
-            }}
-          >
-            <div
-              className="w-32 h-32 md:w-48 md:h-48 rounded-full animate-explosion"
-              style={{
-                background: `radial-gradient(circle, ${missile.color} 0%, ${missile.color}80 30%, transparent 70%)`,
-                filter: `blur(10px)`,
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      <style jsx global>{`
+      <style>{`
+        @keyframes earth-shake {
+          0%, 100% { transform: translateX(0) translateY(0); }
+          10% { transform: translateX(-5px) translateY(-3px); }
+          20% { transform: translateX(5px) translateY(3px); }
+          30% { transform: translateX(-4px) translateY(-2px); }
+          40% { transform: translateX(4px) translateY(2px); }
+          50% { transform: translateX(-3px) translateY(-1px); }
+          60% { transform: translateX(3px) translateY(1px); }
+          70% { transform: translateX(-2px) translateY(0); }
+          80% { transform: translateX(2px) translateY(0); }
+          90% { transform: translateX(-1px) translateY(0); }
+        }
+        .animate-earth-shake {
+          animation: earth-shake 0.5s ease-in-out;
+        }
         @keyframes explosion {
           0% {
             transform: translate(-50%, -50%) scale(0);
@@ -245,6 +240,6 @@ export default function MissileLauncher({ missile, onComplete }: MissileLauncher
           animation: explosion 0.5s ease-out forwards;
         }
       `}</style>
-    </>
+    </div>
   );
 }
